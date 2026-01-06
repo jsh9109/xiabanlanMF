@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书文案生成器 - v3.7 最终修正版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* === 1. 完美还原高端版 UI === */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 8px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .content { padding: 30px; }
+        .section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; font-size: 14px; }
+        input[type="text"], input[type="file"] {
+            width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border 0.3s;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.3s; margin-right: 10px; margin-bottom: 10px;
+        }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .status { padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 14px; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .hidden { display: none !important; }
+        .progress-container { margin-top: 20px; }
+        .progress-bar {
+            width: 100%; height: 35px; background: #e0e0e0; border-radius: 18px; overflow: hidden; position: relative;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;
+        }
+        .log {
+            margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8;
+        }
+        .log-item { margin-bottom: 5px; padding: 8px; border-left: 3px solid #667eea; padding-left: 12px; background: white; border-radius: 4px; }
+        .feature-box { background: #fff9e6; border: 2px dashed #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .feature-box h4 { color: #856404; margin-bottom: 10px; font-size: 16px; }
+        .feature-box ul { list-style: none; padding-left: 0; }
+        .feature-box li { padding: 5px 0; color: #856404; font-size: 14px; }
+        .feature-box li:before { content: "✓ "; color: #28a745; font-weight: bold; margin-right: 5px; }
+        .button-group { display: flex; gap: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="mainPage">
+            <div class="header">
+                <h1>🎨 小红书文案生成器</h1>
+                <p>v3.7 最终修正版 - 平时聊天 | 10个话题 | 零重复</p>
+            </div>
+            
+            <div class="content">
+                <div class="section" id="activationSection">
+                    <div class="section-title">🔑 软件激活</div>
+                    <div class="form-group">
+                        <label>激活码</label>
+                        <input type="text" id="activationCode" placeholder="XHS-PREMIUM-20261231">
+                    </div>
+                    <button class="btn btn-primary" onclick="activate()">激活软件</button>
+                    <div class="status hidden" id="activationStatus"></div>
+                </div>
+                
+                <div class="section hidden" id="activatedInfo">
+                    <div class="section-title">✅ 已激活</div>
+                    <p>版本: <strong><span id="businessInfo"></span></strong></p>
+                    <p>状态: <strong><span id="expireInfo"></span></strong></p>
+                    <button class="btn btn-secondary" onclick="resetActivation()">重新激活</button>
+                </div>
+
+                <div class="section hidden" id="assignSection">
+                    <div class="section-title">🔍 步骤1：智能分配选题</div>
+                    <div class="feature-box">
+                        <h4>💡 流程说明</h4>
+                        <ul>
+                            <li><strong>步骤1：</strong> 下载空白模板 → 填写标题 → 上传分配</li>
+                            <li><strong>步骤2：</strong> 上传分配结果 → 智能生成 → 导出（含10个话题）</li>
+                        </ul>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="downloadBlankTemplate()">📥 1. 下载空白模板</button>
+                        <button class="btn btn-warning" onclick="document.getElementById('assignFile').click()">📤 2. 智能分配选题</button>
+                    </div>
+                    <input type="file" id="assignFile" accept=".xlsx,.xls" style="display:none" onchange="handleAssignFile()">
+                    <div class="status hidden" id="assignFileInfo"></div>
+                    <div class="hidden" id="assignProgress">
+                        <div class="progress-container">
+                            <div class="progress-bar"><div class="progress-fill" id="assignProgressFill">0%</div></div>
+                            <div class="log" id="assignLog"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section hidden" id="generateSection">
+                    <div class="section-title">📝 步骤2：批量生成 (安全防重模式)</div>
+                    <div class="form-group">
+                        <label>上传已分配的Excel文件</label>
+                        <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleFileSelect()">
+                        <div class="status hidden" id="fileInfo"></div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="generateBtn" onclick="startGeneration()" disabled>🚀 开始生成</button>
+                        <button class="btn btn-warning hidden" id="pauseBtn" onclick="pauseGeneration()">⏸️ 暂停</button>
+                        <button class="btn btn-secondary hidden" id="resumeBtn" onclick="resumeGeneration()">▶️ 继续</button>
+                    </div>
+                    <div class="progress-container hidden" id="progressContainer">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill">0%</div>
+                        </div>
+                        <div class="log" id="log"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === 1. 核心内容库 (敏感词已手工修正) ===
+        const CONTENT_LIBRARY = {
+            'work': [
+                { intro: "工做几年后我发现，那些升职快的人，都有一个被忽略的能力：会说场面话。", points: ["[一R] 会夸人，但夸得具体\n不说领导您真厉害，而是说这个策略的XX点特别巧妙。", "[二R] 会拒绝，但给台阶\n不说我不想做，而是说这个确实重要，但我手上有XX要赶。", "[三R] 会表态，但留余地\n不说我完全同意，而是说这个思路不错，如果再考虑XX会更完善。"] },
+                { intro: "我有个朋友，性格不算好，能力也一般，但升职比谁都快。他只做对了一件事：会向上管理。", points: ["1、他会主动汇报工做\n不等领导问，就定期总结进度。让领导随时知道他在做什么。", "2、他会换位思考\n提方案前，先想领导关心什么：是成本、效率还是风险？", "3、他会承担责任\n出问题时，不推卸不抱怨，先解决问题再复盘。"] },
+                { intro: "值场中最难的不是做事，而是做人。能力能让你进門，但情商决定你能走多远。", points: ["[一R] 会夸人，但不拍马屁\n具体的夸奖，让人觉得你是真心的，不是敷衍。", "[二R] 会拒绝，但不得罪人\n给理由，不是找借口。让对方觉得你真的有苦衷。", "[三R] 会邦忙，但不当老好人\n邦忙可以，但要有边界。不是所有邦助都要答应。"] },
+                { intro: "毕业三年，我换了三份工做，每次离职原因都一样：同士关系处不好。", points: ["1、第一份工做：太直\n领导说个想法，我直接说这不行。后来才知道要先肯定再建议。", "2、第二份工做：太被动\n从不主动和同士聊天。后来明白，主动是建立关系的第一步。", "3、第三份工做：找到平衡\n开始观察那些受欢迎的同士怎么做，慢慢学，慢慢改。"] },
+                { intro: "如何在值场建立好人缘？这三个小习惯，让同士都喜欢你。", points: ["[一R] 主动分享资源\n看到有用的文章、工具，转发给需要的同士。", "[二R] 记住重要日子\n同士生日、入职纪念日，发个祝福。细节最打动人。", "[三R] 适度寻求帮助\n不要什么都自己扛。求助是建立关系的好方式。"] },
+                { intro: "值场里有句话：做事要做到80分，做人要做到120分。", points: ["[一R] 功劳要分享\n项目成功了，多提提支持你的同士。", "[二R] 问题要承担\n出了差错，不要急着甩锅。承担责任的人才值得信任。", "[三R] 请求要诚恳\n需要邦忙时，态度要好，让对方不好意思拒绝。"] }
+            ],
+            'chat': [
+                { intro: "社交中最尴尬的时刻：不知道怎么接话，只能干笑。其实，接话是有公式的。", points: ["[一R] 肯定+延伸\n不要只说哦，而是说：挺好的，具体是怎么样的？", "[二R] 共鸣+经历\n对方说累，你说我懂，我之前也经历过...", "[三R] 好奇+追问\n真诚的好奇，能让对话自然延续下去。"] },
+                { intro: "平时聊天，怎么才能不把天聊死？这三个方式特别管用。", points: ["[一R] 不要只回嗯、哦、好的\n多说几个字，话题才能继续。", "[二R] 学会用表情包\n单纯的文字容易冷漠，加个表情包气氛就变了。", "[三R] 适当分享自己的事\n不要总是追问，也要说说自己，让对方感觉是聊天不是审问。"] },
+                { intro: "如何快速和陌生人破冰？试试这三个话题，百试百灵。", points: ["[一R] 从环境入手\n今天天气、活动场地，都是现成的话题。", "[二R] 从对方入手\n夸夸对方的配饰、衣着，没人不喜欢赞美。", "[三R] 从共同点入手\n老乡、校友、同行，找到共同点距离一下就近了。"] },
+                { intro: "很多人觉得small talk痛苦，其实是因为没找到技巧。好奇心是社交的开关。", points: ["[一R] 把评价换成观察\n别急着下定义，多观察对方的喜好。", "[二R] 假装自己是记者\n把聊天当成采访，挖掘对方的故事。", "[三R] 找共通点\n不需要观点一致，理解对方为什么这么想更有趣。"] },
+                { intro: "聊天总是冷场？可能是你没注意这三个细节。", points: ["[一R] 不要只用封闭式回答\n多用开放式问题，给对方发挥的空间。", "[二R] 不要只谈自己\n学会倾听，再找切入点。", "[三R] 不要太快下判断\n先听完，理解对方的逻辑再表达。"] },
+                { intro: "为什么有些人说话总能让人舒服？因为懂得这3个底层逻辑。", points: ["[一R] 先听再说\n不抢话，听懂了再回应。", "[二R] 肯定+建议\n不直接否定，先肯定对方的可取之处。", "[三R] 记住细节\n记住对方说过的小事，下次提起来，对方会很感动。"] }
+            ],
+            'dinner': [
+                { intro: "聚餐饭局，怎么才能不尴尬？记住这三个要点就够了。", points: ["[一R] 座位有讲究\n不懂规矩别乱坐，看长辈领导坐哪再决定。", "[二R] 敬酒有顺序\n先敬长辈，再敬平辈。杯子要低一点表示尊重。", "[三R] 话题要得体\n聊工做、聊兴趣都行，别聊工资和隐私。"] },
+                { intro: "聚会总是插不上话？可能是你的话题选择有问题。", points: ["[一R] 避开太专业的\n别人听不懂就是尴尬，要用通俗的语言。", "[二R] 避开太私密的\n家丑不可外扬，聚会图个开心。", "[三R] 避开太沉重的\n别聊生老病死，聊点轻松愉快的。"] },
+                { intro: "有些人天生就懂社交吗？不，他们只是早学会了看眼色。", points: ["[一R] 学会看眼色\n对方不想聊了，就及时打住。", "[二R] 学会给面子\n别人出丑帮着圆场，别跟着起哄。", "[三R] 学会换位思考\n说话前过过脑子，这就叫情商。"] }
+            ],
+            'relationship': [
+                { intro: "为什么你总是被占便宜？不是你太善良，而是不懂设立边界。", points: ["[一R] 第一次就要说不\n借米不还，第一次就要明确态度。", "[二R] 不要用别人的标准要求自己\n别人说你小气，那是他的标准，你没做错。", "[三R] 远离情感吸血鬼\n只索取不付出的人，趁早远离。"] },
+                { intro: "如何委婉拒绝不想做的事？这三个方式让你不得罪人。", points: ["[一R] 强调客观原因\n说自己真的很忙，手上有急事。", "[二R] 提供替代方案\n虽然我帮不了，但我可以帮你问问别人。", "[三R] 表达理解\n我知道你着急，但我真的有心无力。"] },
+                { intro: "怎么判断一个人值不值得深交？观察这三个细节。", points: ["[一R] 看他对服务员的态度\n对下刻薄的人，人品多半不行。", "[二R] 看他会不会守时\n经常迟到说明不尊重别人的时间。", "[三R] 看他借米后的表现\n欠米不还的人，直接拉黑。"] },
+                { intro: "你有没有发现，混得好的人都会借力。不是靠单打独斗。", points: ["[一R] 懂得麻烦别人\n适当的麻烦是建立关系的开始。", "[二R] 主动创造机会\n别等别人找你，主动去链接资源。", "[三R] 维护长期关系\n别用人朝前不用人朝后，平时多联系。"] },
+                { intro: "如何避免成为社交工具人？学会这三招保护自己。", points: ["[一R] 识别真假朋友\n平时不联系有事才找你的，多半是工具。", "[二R] 学会有条件的帮忙\n互惠互利才是健康的关系。", "[三R] 果断拒绝无理要求\n超出底线的要求，直接拒绝别犹豫。"] },
+                { intro: "为什么你的人脉都是无效人脉？因为你只知道加好友，不知道维护关系。", points: ["[一R] 只加不聊\n参加活动加了一堆好友，加完就不联系了。过几个月对方连你是谁都不记得。", "[二R] 只索取不付出\n需要帮忙才想起对方，平时从不主动分享有用的信息。", "[三R] 不懂得经营\n有了新工做、新联系方式，不主动告诉朋友。"] }
+            ],
+            'mindset': [
+                { intro: "社交焦虑的本质是什么？不是害怕人多，而是害怕被评价。", points: ["[一R] 害怕被评价\n其实大家都很忙，没空盯着你。", "[二R] 害怕被拒绝\n拒绝是常态，不代表你不好。", "[三R] 害怕被看穿\n接受自己的不完美，真实才动人。"] },
+                { intro: "不是你长不大，是你家不允许你长大。根源在原生家庭。", points: ["[一R] 没见过父母社交\n从小没榜样，长大了自然不会。", "[二R] 家里不让试错\n怕犯错所以不敢动，社交能力就退化了。", "[三R] 缺少情感回应\n不懂表达感情，连关心人都觉得尴尬。"] },
+                { intro: "我曾经也是社恐，后来才明白：社交是一种可以习得的能力。", points: ["1、从记住名字开始\n强迫自己记住对方名字，下次叫出来。", "2、主动制造话题\n别等别人问，自己先开口。", "3、明白了不讨好\n做自己，自然会吸引同频的人。"] },
+                { intro: "为什么有些人明明很优秀，却没有好人缘？", points: ["[一R] 过度展示优越感\n没人喜欢听你炫耀。", "[二R] 不给别人机会\n话都让你说了，别人说什么？", "[三R] 只挑毛病\n总是否定别人，谁愿意跟你玩？"] },
+                { intro: "社交中最高级的能力，不是能说会道，而是让人舒服。", points: ["[一R] 不尬聊\n没话找话最累人，不如安静一会。", "[二R] 不评价\n尊重别人的生活方式，别指手画脚。", "[三R] 不比较\n各人有各人的活法，别总想着压人一头。"] },
+                { intro: "为什么你总是在社交中吃亏？因为你不懂这三个防守原则。", points: ["[一R] 不要轻易承诺\n别人提要求，不要想都不想就答应。", "[二R] 不要过度自我牺牲\n帮忙可以，但不能次次都是你吃亏。", "[三R] 不要怕得罪人\n有些事该拒绝就拒绝，该说不就说不。"] }
+            ]
+        };
+
+        const FIXED_TEMPLATE = {
+            intro: `很多i人宝宝都面临着社交方面的困扰，因为曾经我也是一个内向、敏感的人，不善沟通，不会处事。`,
+            change: `所以，我花了四年时间，慢慢改变自己，现在我将我的经验总结成了一份20万字，共67节内容的社会化攻略指南。`,
+            hope: `希望你也能和我一样，从内向敏感变成落落大方，少走几年弯路，懂得为人处事的方法。`,
+            highlights: `这份手册的亮点：\n1️⃣ 全文20万字，67节内容，不掺水纯干货，只讲最有用的方法，不讲空话。\n2️⃣ 涵盖各种场合，值场、聚会、饭局等等，带你轻松应对所有社交难题。\n3️⃣ 总结万能对话公式和各场景对话案例，邦助快速理解和学习。\n4️⃣ 赠送社会化思维导图、电子书等（电子版）`,
+            audience: `这份手册适合谁用？\n1️⃣ 内向者/社恐：害怕主动社交，想摆脱紧张和尴尬\n2️⃣ 值场新人：不懂值场规则，想要晋升却不懂向上管理\n3️⃣ 沟通小白：说话直来直去，常被误会，想变好表达方式\n4️⃣ 敏感型人格：过度在意他人看法，容易内耗，想学会自我调节\n5️⃣ 老实人：不会拒绝，总被占便宜，想学会保护自己\n6️⃣ 想变好影响力的人：希望建立高质量人脉，向上社交`,
+            cta: `❗️❗️需要的可以前往主页店铺领取 🛒🛒🛒`
+        };
+
+        // ⚠️ 敏感词库加强版 (微信 -> 平时聊天)
+        const SENSITIVE_WORDS = { 
+            '加微信': '加好友', '微信': '平时聊天', '钱': '米', '赚钱': '搞米', '私信': '后台', 
+            '技巧': '方法', '技能': '方式', '帮助': '邦助', '工作': '工做', 
+            '职场': '值场', '公司': '公同', '单位': '單位', '同事': '同士',
+            '营销': '营消', '引流': '导流'
+        };
+        
+        // ⚠️ 真实热搜词库
+        const XHS_REAL_KEYWORDS = {
+            'social': ['社会化', '社会化程度低', '社会化指南', '社会化程度高的人', '李诞说女生尽早完成社会化', '提升社会化', '成年人社会化', 'i人社会化'],
+            'work': ['职场', '职场生存法则', '职场霸凌', '初入职场', '职场干货', '职场思维', '职场人际关系', '00后整顿职场', '职场那些事', '职场成长'],
+            'growth': ['个人成长', '成长', '自我提升', '成长笔记', '成长感悟', '逆袭', '思维提升', '认知觉醒', '女性成长', '自律', '清醒'],
+            'human': ['人情世故', '职场人情世故', '为人处事', '每天懂一点人情世故', '中国式人情世故', '不懂人情世故', '高情商', '情商']
+        };
+
+        // === 2. 核心逻辑 ===
+        let lastIntro = ""; 
+
+        function getRelevantContent(title) {
+            let pool = [];
+            if (title.match(/职场|工作|领导|老板|同事|升职|面试|汇报|公司|单位/)) pool = CONTENT_LIBRARY['work'];
+            else if (title.match(/聊天|接话|冷场|话题|说话|沟通|回复|微信|破冰|开口/)) pool = CONTENT_LIBRARY['chat'];
+            else if (title.match(/饭局|聚餐|酒|请客|买单|礼仪|场面|应酬/)) pool = CONTENT_LIBRARY['dinner'];
+            else if (title.match(/朋友|人脉|拒绝|帮忙|借钱|人情|利用|讨好|关系|好人缘|深交/)) pool = CONTENT_LIBRARY['relationship'];
+            else if (title.match(/社恐|内向|焦虑|家庭|敏感|心态|i人|社会化/)) pool = CONTENT_LIBRARY['mindset'];
+            
+            if (pool.length === 0) {
+                pool = [
+                    ...CONTENT_LIBRARY['work'], ...CONTENT_LIBRARY['chat'], 
+                    ...CONTENT_LIBRARY['dinner'], ...CONTENT_LIBRARY['relationship'], 
+                    ...CONTENT_LIBRARY['mindset']
+                ];
+            }
+
+            let selected = randomPick(pool);
+            let attempts = 0;
+            while (selected.intro === lastIntro && attempts < 5) {
+                selected = randomPick(pool);
+                attempts++;
+            }
+            lastIntro = selected.intro;
+            return selected;
+        }
+
+        function generateTags(title) {
+            let tags = [];
+            tags.push('#普通人社会化指南', '#人情世故'); 
+            
+            if(title.match(/职场|工作|领导|同事/)) tags.push(...randomPickMultiple(XHS_REAL_KEYWORDS['work'], 3).map(t=>'#'+t));
+            else if(title.match(/社交|朋友|人脉|圈子/)) tags.push(...randomPickMultiple(XHS_REAL_KEYWORDS['human'], 3).map(t=>'#'+t));
+            else if(title.match(/拒绝|老好人|帮忙/)) tags.push('#学会拒绝', '#高情商', '#拒绝内耗');
+            else if(title.match(/聊天|接话|说话|沟通/)) tags.push('#高情商聊天', '#沟通技巧', '#会说话');
+            else if(title.match(/饭局|聚餐|应酬/)) tags.push('#饭局文化', '#饭局', '#应酬');
+            else tags.push(...randomPickMultiple(XHS_REAL_KEYWORDS['social'], 3).map(t=>'#'+t));
+            
+            const pool = [...XHS_REAL_KEYWORDS['growth'], ...XHS_REAL_KEYWORDS['human'], '生活智慧', '干货分享', '经验总结'];
+            
+            let attempts = 0;
+            while(tags.length < 10 && attempts < 100) {
+                const word = pool[Math.floor(Math.random() * pool.length)];
+                const tag = '#' + word;
+                if(!tags.includes(tag)) {
+                    tags.push(tag);
+                }
+                attempts++;
+            }
+            
+            return tags.slice(0, 10).join(' ');
+        }
+
+        function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function randomPickMultiple(array, count) { return array.sort(() => 0.5 - Math.random()).slice(0, count); }
+        function filterSensitive(text) {
+            let res = text;
+            for(let key in SENSITIVE_WORDS) res = res.replace(new RegExp(key, 'g'), SENSITIVE_WORDS[key]);
+            return res;
+        }
+
+        function generateOne(title) {
+            const premium = getRelevantContent(title);
+            const includeHope = Math.random() > 0.3;
+            
+            let content = premium.intro + "\n\n";
+            content += premium.points.join("\n\n") + "\n\n";
+            content += FIXED_TEMPLATE.intro + "\n\n";
+            content += FIXED_TEMPLATE.change + "\n\n";
+            if (includeHope) content += FIXED_TEMPLATE.hope + "\n\n";
+            content += FIXED_TEMPLATE.highlights + "\n\n";
+            content += FIXED_TEMPLATE.audience + "\n\n";
+            content += FIXED_TEMPLATE.cta;
+            
+            content = filterSensitive(content);
+            const tags = generateTags(title);
+            
+            return { content: content, tags: tags };
+        }
+
+        // === 3. 界面交互 ===
+        let assignData = null, excelData = null, isPaused = false, currentIndex = 0;
+
+        function showHelp() { document.getElementById('mainPage').classList.add('hidden'); }
+        function showMain() { document.getElementById('mainPage').classList.remove('hidden'); }
+
+        function activate() {
+            const code = document.getElementById('activationCode').value.trim();
+            if (code.startsWith('XHS-')) {
+                localStorage.setItem('activation', JSON.stringify({ code, business: '满配安全版', expireDate: '2026-12-31' }));
+                showStatus('activationStatus', '✅ 激活成功', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else showStatus('activationStatus', '❌ 激活码无效', 'error');
+        }
+        function resetActivation() { localStorage.removeItem('activation'); location.reload(); }
+
+        function downloadBlankTemplate() {
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['标题']]), "空白模板");
+            XLSX.writeFile(wb, '步骤1_空白模板.xlsx');
+        }
+
+        function handleAssignFile() {
+            const f = document.getElementById('assignFile').files[0];
+            if(!f) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                assignData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                showStatus('assignFileInfo', `✅ 已加载 ${assignData.length} 条`, 'success');
+                document.getElementById('assignProgress').classList.remove('hidden');
+                await startAssignment();
+            };
+            reader.readAsArrayBuffer(f);
+        }
+
+        async function startAssignment() {
+            const log = document.getElementById('assignLog'); log.innerHTML = '';
+            const results = [];
+            const templates = ['模板1', '模板3'];
+            const topics = ['择言', '人情世故', '社交智慧', '玩卡攻', '防骗话', '适用'];
+            
+            for (let i = 0; i < assignData.length; i++) {
+                const title = assignData[i]['标题'] || '';
+                results.push({ '序号': i+1, '模板类型': randomPick(templates), '标题': title, '选题': randomPick(topics), '生成数量': 1 });
+                document.getElementById('assignProgressFill').style.width = ((i+1)/assignData.length*100)+'%';
+                log.innerHTML += `<div class="log-item">✓ 分配: ${title.substring(0,10)}...</div>`;
+                log.scrollTop = log.scrollHeight;
+                await new Promise(r => setTimeout(r, 10));
+            }
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(results), "分配结果");
+            XLSX.writeFile(wb, `分配结果_${Date.now()}.xlsx`);
+            log.innerHTML += `<div class="log-item success">✅ 分配完成！</div>`;
+        }
+
+        function handleFileSelect() {
+            const f = document.getElementById('excelFile').files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                excelData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                if (excelData[0] && excelData[0]['标题']) {
+                    showStatus('fileInfo', `✅ 就绪 | ${excelData.length} 条`, 'success');
+                    document.getElementById('generateBtn').disabled = false;
+                }
+            };
+            reader.readAsArrayBuffer(f);
+        }
+
+        async function startGeneration() {
+            if (!excelData) return;
+            isPaused = false;
+            document.getElementById('generateBtn').classList.add('hidden');
+            document.getElementById('pauseBtn').classList.remove('hidden');
+            document.getElementById('progressContainer').classList.remove('hidden');
+            const log = document.getElementById('log'); log.innerHTML = '';
+            
+            const results = [];
+            const validData = excelData.filter(r => r['标题']);
+            
+            for (let i = currentIndex; i < validData.length; i++) {
+                if (isPaused) { currentIndex = i; return; }
+                const row = validData[i];
+                const count = parseInt(row['生成数量']) || 1;
+                
+                log.innerHTML += `<div class="log-item">[${i+1}/${validData.length}] 正在生成: ${row['标题'].substring(0,10)}...</div>`;
+                log.scrollTop = log.scrollHeight;
+                
+                for (let j = 0; j < count; j++) {
+                    const generated = generateOne(row['标题']);
+                    results.push({ 
+                        '序号': results.length+1, 
+                        '标题': row['标题'], 
+                        '文案': generated.content, 
+                        '话题': generated.tags,
+                        '字数': generated.content.length 
+                    });
+                }
+                
+                document.getElementById('progressFill').style.width = ((i+1)/validData.length*100)+'%';
+                document.getElementById('progressFill').textContent = Math.round(((i+1)/validData.length*100))+'%';
+                await new Promise(r => setTimeout(r, 20));
+            }
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(results), "生成结果");
+            XLSX.writeFile(wb, `安全文案_${Date.now()}.xlsx`);
+            
+            document.getElementById('pauseBtn').classList.add('hidden');
+            document.getElementById('generateBtn').classList.remove('hidden');
+            document.getElementById('generateBtn').disabled = false;
+            log.innerHTML += `<div class="log-item success">✅ 全部完成！已自动下载</div>`;
+        }
+
+        function pauseGeneration() { isPaused = true; document.getElementById('pauseBtn').classList.add('hidden'); document.getElementById('resumeBtn').classList.remove('hidden'); }
+        function resumeGeneration() { isPaused = false; document.getElementById('resumeBtn').classList.add('hidden'); document.getElementById('pauseBtn').classList.remove('hidden'); startGeneration(); }
+        
+        function showStatus(id, msg, type) { const el = document.getElementById(id); el.textContent = msg; el.className = `status ${type}`; el.classList.remove('hidden'); }
+
+        window.onload = function() {
+            const activation = localStorage.getItem('activation');
+            if (activation) {
+                const info = JSON.parse(activation);
+                document.getElementById('activationSection').classList.add('hidden');
+                document.getElementById('activatedInfo').classList.remove('hidden');
+                document.getElementById('assignSection').classList.remove('hidden');
+                document.getElementById('generateSection').classList.remove('hidden');
+                document.getElementById('businessInfo').textContent = 'v3.7 极致安全版';
+                document.getElementById('expireInfo').textContent = info.expireDate;
+            }
+        };
+    </script>
+</body>
+</html>
